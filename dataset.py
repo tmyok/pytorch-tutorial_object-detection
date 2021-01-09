@@ -8,6 +8,16 @@ import numpy as np
 import torch
 from PIL import Image
 
+import transforms as T
+
+
+def get_transform(train):
+    transforms = []
+    transforms.append(T.ToTensor())
+    if train:
+        transforms.append(T.RandomHorizontalFlip(0.5))
+    return T.Compose(transforms)
+
 class PennFudanDataset(object):
     def __init__(self, root, transforms):
         self.root = root # root directory
