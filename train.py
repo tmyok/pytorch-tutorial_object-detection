@@ -54,4 +54,7 @@ for epoch in range(num_epoch):
     # evaluate on the test dataset
     evaluate(model, data_loader_test, device=device)
 
+# Saving Model for Inference
+torch.save(model.state_dict(), "dict.pth")
+
 print("That's it!")
