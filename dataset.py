@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-import transforms as T
+import references.transforms as T
 
 
 def get_transform(train):

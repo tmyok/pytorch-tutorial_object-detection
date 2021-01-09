@@ -4,7 +4,7 @@
 import torch
 import torchvision
 from dataset import PennFudanDataset, get_transform
-import utils
+from references import utils
 
 # Testing forward() : sample
 model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
