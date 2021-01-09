@@ -41,7 +41,7 @@ class PennFudanDataset(object):
         num_objs = len(obj_ids)
         boxes = []
         for i in range(num_objs):
-            pos = no.where(masks[i]):
+            pos = np.where(masks[i])
             xmin = np.min(pos[1])
             xmax = np.max(pos[1])
             ymin = np.min(pos[0])
@@ -54,7 +54,7 @@ class PennFudanDataset(object):
         labels = torch.ones((num_objs,), dtype=torch.int64)
         masks = torch.as_tensor(masks, dtype=torch.uint8)
 
-        image_id = torch_tensor([idx])
+        image_id = torch.tensor([idx])
         area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
         # suppose all instances are not crowd
         iscrowd = torch.zeros((num_objs,), dtype=torch.int64)
@@ -73,7 +73,7 @@ class PennFudanDataset(object):
         return img, target
 
     def __len__(self):
-        return len(self.imgs
+        return len(self.imgs)
 
 # Define my model
 # 1 - Finetuning from a pretrained model
@@ -82,7 +82,7 @@ class PennFudanDataset(object):
 # https://pytorch.org/tutorials/intermediate/torchvision_tutorial.html
 
 import torchvision
-from torchvision.models.detection.fasterrcnn import FastRCNNPredictor
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 
 # load a model pre-trained on COCO
 model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
@@ -101,7 +101,7 @@ model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 # https://pytorch.org/tutorials/intermediate/torchvision_tutorial.html
 
 import torchvision
-from torchvision.models.detection import fasterRCNN
+from torchvision.models.detection import FasterRCNN
 from torchvision.models.detection.rpn import AnchorGenerator
 
 # load a pre-trained model for classification and return
@@ -111,6 +111,14 @@ backbone = torchvision.models.mobilenet_v2(pretrained=True).features
 # output channels in a backbone. For mobilenet_v2, it's 1280
 # so we need to add it here
 backbone.out_channels = 1280
+
+# let's make the RPN generate 5 x 3 anchors per spatial
+# location, with 5 different sizes and 3 different aspect
+# ratios. We have a Tuple[Tuple[int]] because each feature
+# map could potentially have different sizes and
+# aspect ratios
+anchor_generator = AnchorGenerator(sizes=((32, 64, 128, 256, 512),),
+                                   aspect_ratios=((0.5, 1.0, 2.0),))
 
 # let's define what are the feature maps that we will
 # use to perform the region of interest cropping, as well as
@@ -124,10 +132,10 @@ roi_pooler = torchvision.ops.MultiScaleRoIAlign(featmap_names=[0],
                                                 sampling_ratio=2)
 
 # put the pieces together inside a FasterRCNN model
-model = fasterRCNN(backbone,
+model = FasterRCNN(backbone,
                    num_classes=2,
                    rpn_anchor_generator=anchor_generator,
-                   box_roi_pooler=roi_pooler)
+                   box_roi_pool=roi_pooler)
 
 # An Instance segmentation model for PennFudan Dataset
 
@@ -151,13 +159,14 @@ def get_model_instance_segmentation(num_classes):
     in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
     hidden_layer = 256
     # and replace the mask predictor with a new one
-    model.roi_heads.mask_predictor = MaskRCNNPredictor(in_feature_mask,
+    model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask,
                                                        hidden_layer,
                                                        num_classes)
 
     return model
 
 import transforms as T
+import utils
 
 def get_transform(train):
     transforms = []
@@ -174,9 +183,9 @@ data_loader = torch.utils.data.DataLoader(
     collate_fn=utils.collate_fn)
 # For Training
 images, targets = next(iter(data_loader))
-images = list(image for inage in images)
+images = list(image for image in images)
 targets = [{k: v for k, v in t.items()} for t in targets]
-output = model(images, targers) # Returns losses and detections
+output = model(images, targets) # Returns losses and detections
 # For inference
 model.eval()
 x = [torch.rand(3, 300, 400), torch.rand(3, 500, 400)]
@@ -229,10 +238,12 @@ def main():
 
     for epoch in range(num_epoch):
         # train for one epoch, printing every 10 iterations
-        train_one_epoch(model, optimizer, data_loader, device, print_freq=10)
+        train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
         # update the learning rate
         lr_scheduler.step()
         # evaluate on the test dataset
         evaluate(model, data_loader_test, device=device)
 
     print("That's it!")
+
+main()
